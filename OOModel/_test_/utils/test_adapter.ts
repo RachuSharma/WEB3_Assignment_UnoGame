@@ -1,16 +1,19 @@
 import { Randomizer, Shuffler, standardRandomizer, standardShuffler } from '../../src/utils/random_utils'
+import * as deck from '../../src/model/deck'
+import * as round from '../../src/model/round'
+import * as uno from '../../src/model/uno'
 
-// Fix (or import) these types:
-type Card = any
-type Deck = any
-type Round = any
-type Game = any
+type Card = deck.Card
+type Deck = deck.Deck
+type Round = round.Round
+type Game = uno.Game
 
-//Fill out the empty functions
 export function createInitialDeck(): Deck {
+  return deck.createInitialDeck()
 }
 
 export function createDeckFromMemento(cards: Record<string, string | number>[]): Deck {
+  return deck.deckFromMemento(cards)
 }
 
 export type HandConfig = {
@@ -26,9 +29,11 @@ export function createRound({
     shuffler = standardShuffler,
     cardsPerPlayer = 7
   }: HandConfig): Round {
+  return round.startRound({ players, dealer, shuffler, cardsPerPlayer })
 }
 
 export function createRoundFromMemento(memento: any, shuffler: Shuffler<Card> = standardShuffler): Round {
+  return round.roundFromMemento(memento, shuffler)
 }
 
 export type GameConfig = {
@@ -40,7 +45,9 @@ export type GameConfig = {
 }
 
 export function createGame(props: Partial<GameConfig>): Game {
+  return uno.startGame(props)
 }
 
 export function createGameFromMemento(memento: any, randomizer: Randomizer = standardRandomizer, shuffler: Shuffler<Card> = standardShuffler): Game {
+  return uno.gameFromMemento(memento, randomizer, shuffler)
 }
