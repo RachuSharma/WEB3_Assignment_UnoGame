@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { RoundMemento } from '../../../OOModel_Assignmet1/src/model/round'
-import { cardScore } from '../../../OOModel_Assignmet1/src/model/card'
+import { useOngoingGameStore } from '../stores/OngoingGameStore'
+import { usePlayerHandsStore } from '../stores/PlayerHandsStore'
 
-defineProps<{ winner: string; score: number; state: RoundMemento }>()
+const ongoingGame = useOngoingGameStore()
+const playerHands = usePlayerHandsStore()
 
 const emit = defineEmits<{ restart: [] }>()
 </script>
@@ -14,10 +15,10 @@ const emit = defineEmits<{ restart: [] }>()
   >
     <p class="round-status">ROUND COMPLETE</p>
 
-    <h1 id="result-title">{{ winner }} wins!</h1>
+    <h1 id="result-title">{{ ongoingGame.winner }} wins!</h1>
 
     <p class="score">
-      {{ score }}
+      {{ ongoingGame.score }}
       <span>points</span>
     </p>
 
@@ -36,19 +37,12 @@ const emit = defineEmits<{ restart: [] }>()
 
       <tbody>
         <tr
-          v-for="(playerName, playerIndex) in state.players"
+          v-for="(hand, playerIndex) in playerHands.playerHands"
           :key="playerIndex"
         >
-          <th scope="row">{{ playerName }}</th>
-          <td>{{ state.hands[playerIndex]?.length }}</td>
-          <td>
-            {{
-              state.hands[playerIndex]?.reduce(
-                (sum, card) => sum + cardScore(card),
-                0,
-              )
-            }}
-          </td>
+          <th scope="row">{{ hand.name }}</th>
+          <td>{{ hand.cardCount }}</td>
+          <td>{{ hand.handValue }}</td>
         </tr>
       </tbody>
     </table>

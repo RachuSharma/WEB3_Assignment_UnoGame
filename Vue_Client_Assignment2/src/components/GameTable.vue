@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import {
-  colors,
-  type Color,
-  type Card,
-} from '../../../OOModel_Assignmet1/src/model/card'
-import type { RoundMemento } from '../../../OOModel_Assignmet1/src/model/round'
+import { colors, type Color } from '../../../OOModel_Assignmet1/src/model/card'
+import { useCardsStore } from '../stores/CardsStore'
+import { useCurrentPlayerStore } from '../stores/CurrentPlayerStore'
+import { useDiscardPileStore } from '../stores/DiscardPileStore'
+import { useOngoingGameStore } from '../stores/OngoingGameStore'
+import { usePlayerHandsStore } from '../stores/PlayerHandsStore'
 import UnoCard from './UnoCard.vue'
+// The table shows the stores; the game screen handles what the player does
+const cards = useCardsStore()
+const currentPlayer = useCurrentPlayerStore()
+const discardPile = useDiscardPileStore()
+const ongoingGame = useOngoingGameStore()
+const playerHands = usePlayerHandsStore()
 defineProps<{
-  state: RoundMemento
-  hand: readonly Card[]
   legal: number[]
   humanTurn: boolean
   pendingWild: number | null
   unoArmed: boolean
   offender: number | null
-  messages: string[]
 }>()
 const emit = defineEmits<{
   play: [index: number]
@@ -30,18 +33,18 @@ const emit = defineEmits<{
   <section aria-label="UNO table">
     <div class="opponents">
       <article
-        v-for="(name, i) in state.players.slice(1)"
+        v-for="(opponent, i) in playerHands.playerHands.slice(1)"
         :key="i"
         class="opponent"
-        :class="{ active: state.playerInTurn === i + 1 }"
+        :class="{ active: currentPlayer.currentPlayer === i + 1 }"
       >
         <span class="avatar">B{{ i + 1 }}</span>
         <div>
-          <strong>{{ name }}</strong>
-          <p>{{ state.hands[i + 1]?.length }} cards</p>
+          <strong>{{ opponent.name }}</strong>
+          <p>{{ opponent.cardCount }} cards</p>
         </div>
         <span
-          v-if="state.playerInTurn === i + 1"
+          v-if="currentPlayer.currentPlayer === i + 1"
           class="badge"
         >
           Playing
@@ -63,7 +66,7 @@ const emit = defineEmits<{
         {{
           humanTurn
             ? 'Your turn'
-            : `${state.players[state.playerInTurn ?? 0]} is thinking...`
+            : `${playerHands.playerHands[currentPlayer.currentPlayer ?? 0]?.name} is thinking...`
         }}
       </div>
       <div class="piles">
@@ -74,24 +77,27 @@ const emit = defineEmits<{
           >
             <strong>UNO</strong>
           </div>
-          <p>Draw &middot; {{ state.drawPile.length }}</p>
+          <p>Draw &middot; {{ ongoingGame.drawPileSize }}</p>
         </div>
         <div>
           <UnoCard
-            v-if="state.discardPile[0]"
-            :card="state.discardPile[0]"
+            v-if="discardPile.topCard"
+            :card="discardPile.topCard"
           />
           <p>Discard</p>
         </div>
       </div>
-      <p class="colour-status">
+      <p
+        v-if="discardPile.currentColor"
+        class="colour-status"
+      >
         <span
           class="colour-dot"
-          :class="state.currentColor.toLowerCase()"
+          :class="discardPile.currentColor.toLowerCase()"
         ></span>
-        {{ state.currentColor.toLowerCase() }} &middot;
+        {{ discardPile.currentColor.toLowerCase() }} &middot;
         {{
-          state.currentDirection === 'clockwise'
+          ongoingGame.direction === 'clockwise'
             ? 'Clockwise'
             : 'Counterclockwise'
         }}
@@ -103,8 +109,8 @@ const emit = defineEmits<{
     >
       <div class="hand-heading">
         <h2 id="hand-title">
-          {{ state.players[0] }}
-          <span class="muted">&middot; {{ hand.length }} cards</span>
+          {{ playerHands.playerHands[0]?.name }}
+          <span class="muted">&middot; {{ cards.cards.length }} cards</span>
         </h2>
         <span
           v-if="unoArmed"
@@ -118,7 +124,7 @@ const emit = defineEmits<{
       </p>
       <div class="hand">
         <UnoCard
-          v-for="(card, i) in hand"
+          v-for="(card, i) in cards.cards"
           :key="i"
           :card="card"
           interactive
@@ -151,7 +157,9 @@ const emit = defineEmits<{
         </button>
         <button
           :aria-pressed="unoArmed"
-          :disabled="!(offender === 0 || (humanTurn && hand.length === 2))"
+          :disabled="
+            !(offender === 0 || (humanTurn && cards.cards.length === 2))
+          "
           @click="emit('uno')"
         >
           {{ unoArmed ? 'UNO armed' : 'Say UNO!' }}
@@ -171,7 +179,7 @@ const emit = defineEmits<{
       <summary>Table activity</summary>
       <ol>
         <li
-          v-for="(message, i) in messages"
+          v-for="(message, i) in ongoingGame.messages"
           :key="i"
         >
           {{ message }}

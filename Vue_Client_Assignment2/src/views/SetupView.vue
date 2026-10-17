@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useGameStore } from '../stores/GameStore'
+import { useOngoingGameStore } from '../stores/OngoingGameStore'
 const router = useRouter()
-const game = useGameStore()
+const ongoingGame = useOngoingGameStore()
 const name = ref('')
 const bots = ref(1)
 const valid = computed(
   () => name.value.trim().length > 0 && name.value.trim().length <= 30,
 )
-// Returning to setup, also with the browser's back button, ends a running round
-onMounted(game.reset)
+// Coming back to setup, also with the browser's back button, forgets the last round
+onMounted(ongoingGame.clear)
 function submit() {
   if (!valid.value) return
-  game.start({ name: name.value.trim(), bots: bots.value })
-  if (game.status === 'playing') router.push({ name: 'game' })
+  ongoingGame.start({ name: name.value.trim(), bots: bots.value })
+  router.push({ name: 'game' })
 }
 </script>
 

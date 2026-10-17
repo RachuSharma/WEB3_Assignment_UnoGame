@@ -1,26 +1,34 @@
-import { computed, onScopeDispose, ref, shallowRef } from 'vue'
-import { defineStore } from 'pinia'
+import { computed, onScopeDispose, ref } from 'vue'
 import {
   startRound,
   type Round,
 } from '../../../OOModel_Assignmet1/src/model/round'
-import { isWild, type Color } from '../../../OOModel_Assignmet1/src/model/card'
-import type { BotDecision, BotRequest, BotResponse, Setup } from '../game/types'
+import {
+  cardScore,
+  isWild,
+  type Color,
+} from '../../../OOModel_Assignmet1/src/model/card'
+import { useCardsStore } from '../stores/CardsStore'
+import { useCurrentPlayerStore } from '../stores/CurrentPlayerStore'
+import { useDiscardPileStore } from '../stores/DiscardPileStore'
+import { useOngoingGameStore } from '../stores/OngoingGameStore'
+import { usePlayerHandsStore } from '../stores/PlayerHandsStore'
+import type { BotDecision, BotRequest, BotResponse, Setup } from './types'
 
-export const useGameStore = defineStore('game', () => {
-  // The class instance owns the rules. Replacing its plain snapshot notifies Vue.
+// Runs the round for the game screen; leaving the screen stops the bots
+export function useUnoGame() {
+  const cards = useCardsStore()
+  const currentPlayer = useCurrentPlayerStore()
+  const discardPile = useDiscardPileStore()
+  const ongoingGame = useOngoingGameStore()
+  const playerHands = usePlayerHandsStore()
+  // The class instance owns the rules. The stores receive plain copies to display.
   let round: Round | null = null
-  const snapshot = shallowRef<ReturnType<Round['toMemento']> | null>(null)
-  // The router shows the screen that matches this status
-  const status = ref<'setup' | 'playing' | 'finished'>('setup')
   const error = ref('')
-  const messages = ref<string[]>([])
   const busy = ref(false)
   const pendingWild = ref<number | null>(null)
   const unoArmed = ref(false)
   const offender = ref<number | null>(null)
-  const winner = ref('')
-  const score = ref(0)
   let workers: Worker[] = []
   let generation = 0
   let requestId = 0
@@ -35,28 +43,39 @@ export const useGameStore = defineStore('game', () => {
     }
   >()
 
-  const hand = computed(() => snapshot.value?.hands[0] ?? [])
   const humanTurn = computed(
-    () =>
-      status.value === 'playing' &&
-      snapshot.value?.playerInTurn === 0 &&
-      !busy.value &&
-      !error.value,
+    () => currentPlayer.currentPlayer === 0 && !busy.value && !error.value,
   )
   const legal = computed(() => {
-    if (!snapshot.value || !round || !humanTurn.value) return []
-    return hand.value.flatMap((_, i) => (round!.canPlay(i) ? [i] : []))
+    if (!round || !humanTurn.value) return []
+    return cards.cards.flatMap((_, i) => (round!.canPlay(i) ? [i] : []))
   })
   function log(message: string) {
-    messages.value = [message, ...messages.value].slice(0, 12)
+    ongoingGame.log(message)
   }
   function sync() {
     stateVersion++
-    snapshot.value = round?.toMemento() ?? null
-    if (round?.hasEnded()) {
-      winner.value = round.player(round.winner()!)
-      score.value = round.score() ?? 0
-      status.value = 'finished'
+    if (!round) return
+    const memento = round.toMemento()
+    cards.set(memento.hands[0])
+    playerHands.update(
+      memento.players.map((name, i) => ({
+        name,
+        cardCount: memento.hands[i].length,
+        handValue: memento.hands[i].reduce(
+          (sum, card) => sum + cardScore(card),
+          0,
+        ),
+      })),
+    )
+    currentPlayer.set(memento.playerInTurn ?? null)
+    discardPile.set(memento.discardPile[0] ?? null, memento.currentColor)
+    ongoingGame.set({
+      direction: memento.currentDirection,
+      drawPileSize: memento.drawPile.length,
+    })
+    if (round.hasEnded()) {
+      ongoingGame.finish(round.player(round.winner()!), round.score() ?? 0)
       stop()
     }
   }
@@ -130,7 +149,6 @@ export const useGameStore = defineStore('game', () => {
         ],
         dealer: setup.bots,
       })
-      messages.value = []
       pendingWild.value = null
       offender.value = null
       unoArmed.value = false
@@ -154,7 +172,6 @@ export const useGameStore = defineStore('game', () => {
           )
         workers.push(worker)
       }
-      status.value = 'playing'
       sync()
       log(
         'Round started. Match the colour, number, or symbol on the discard pile.',
@@ -200,10 +217,10 @@ export const useGameStore = defineStore('game', () => {
     }
   }
   function schedule() {
-    if (status.value !== 'playing' || error.value) return
+    if (!round || round.hasEnded() || error.value) return
     const token = generation
     // Leave a visible window to say UNO late or catch a bot before its next action.
-    busy.value = snapshot.value?.playerInTurn !== 0
+    busy.value = currentPlayer.currentPlayer !== 0
     clearTimeout(timer)
     timer = setTimeout(() => {
       void advance(token)
@@ -256,7 +273,7 @@ export const useGameStore = defineStore('game', () => {
   }
   function chooseCard(index: number) {
     if (!humanTurn.value || !legal.value.includes(index)) return
-    const card = hand.value[index]
+    const card = cards.cards[index]
     if (card && isWild(card)) {
       pendingWild.value = index
       return
@@ -276,6 +293,9 @@ export const useGameStore = defineStore('game', () => {
   function chooseColor(color: Color) {
     if (pendingWild.value !== null) humanPlay(pendingWild.value, color)
   }
+  function cancelColor() {
+    pendingWild.value = null
+  }
   function humanDraw() {
     if (!humanTurn.value || pendingWild.value !== null) return
     try {
@@ -286,12 +306,12 @@ export const useGameStore = defineStore('game', () => {
     }
   }
   function sayUno() {
-    if (!round || status.value !== 'playing' || error.value) return
+    if (!round || round.hasEnded() || error.value) return
     if (offender.value === 0) {
       round.sayUno(0)
       offender.value = null
       log(`${round.player(0)} said UNO!`)
-    } else if (humanTurn.value && hand.value.length === 2) {
+    } else if (humanTurn.value && cards.cards.length === 2) {
       unoArmed.value = !unoArmed.value
     }
   }
@@ -302,39 +322,21 @@ export const useGameStore = defineStore('game', () => {
       fail(cause)
     }
   }
-  function cancelColor() {
-    pendingWild.value = null
-  }
-  function reset() {
-    stop()
-    round = null
-    snapshot.value = null
-    status.value = 'setup'
-    error.value = ''
-    pendingWild.value = null
-  }
   onScopeDispose(stop)
   return {
-    snapshot,
-    status,
     error,
-    messages,
     busy,
     pendingWild,
     unoArmed,
     offender,
-    winner,
-    score,
-    hand,
     humanTurn,
     legal,
     start,
     chooseCard,
     chooseColor,
+    cancelColor,
     humanDraw,
     sayUno,
     catchBot,
-    cancelColor,
-    reset,
   }
-})
+}
