@@ -18,17 +18,19 @@ Finish the assignment while giving short explanations as work progresses. Do not
 
 OOModel_Assignmet1 remains the rules authority. Round.canPlay checks legality; play and draw apply effects; sayUno and catchUnoFailure manage the UNO window and four-card penalty; winner and score provide results. We reuse this implementation rather than duplicating rules in components or workers. Assignment 2 follows this model's drawing and opening-card behaviour.
 
-## 2. View model: src/game/useUnoGame.ts
+## 2. View model: src/stores/GameStore.ts
 
-A composable is a function that groups Vue reactive state and related behaviour. useUnoGame owns one live Round instance. It exports screen state and actions to App.vue. After each model action it replaces a plain snapshot stored in shallowRef. Vue notices that replacement and renders the current state. The snapshot is derived display data; the live model remains authoritative.
+GameStore is a Pinia setup store: a function that groups Vue reactive state and related behaviour, written with the Composition API like a component's script setup. It owns one live Round instance and exports the round status and actions to the views. After each model action it replaces a plain snapshot stored in shallowRef. Vue notices that replacement and renders the current state. The snapshot is derived display data; the live model remains authoritative.
 
 computed derives the human hand, whose turn it is, and playable indices. We avoid separately maintaining copied turn names, card counts, and colours. This prevents inconsistent display values. ref holds UI choices such as an unfinished wild-card selection and whether the user has armed UNO.
 
-A single root-owned composable is sufficient for this small application. Pinia would help if many independent pages needed access to the same state; the course presents both approaches. Screen changes use conditional components, also demonstrated in the Components slides. There is no server or URL-addressable saved game.
+The setup, game and result screens are separate routes that all need the same round, so the state lives in one Pinia store instead of a component. The same structure is used by the Assignment 3 client. The round itself lives in memory: there is no server or URL-addressable saved game.
 
-## 3. Views and reusable components
+## 3. Routes, views and reusable components
 
-App.vue chooses the active screen and connects component events to composable actions. GameSetup.vue owns the form fields. v-model binds input values; computed validates the trimmed name; submit.prevent handles the form without reloading the page. It emits a typed Setup value to its parent.
+src/router/index.ts maps / to SetupView, /game to GameView and /result to ResultView. A route guard sends the browser back to setup when no matching round exists, for example after a page refresh. App.vue holds the header, error message and RouterView.
+
+SetupView.vue owns the form fields. v-model binds input values; computed validates the trimmed name; submit.prevent handles the form without reloading the page. It starts the round in the store with a typed Setup value and then opens /game. Returning to setup, including with the browser's back button, ends a running round and stops its workers. GameView.vue connects GameTable to the store and opens /result when the round ends. ResultView.vue does the same for GameResult.
 
 GameTable.vue receives the current state through props and emits user intentions: play, draw, UNO, catch, and colour choice. UnoCard.vue renders a single card, deriving its label and colour from its prop. GameResult.vue displays the winner, round score, and remaining hand values. This follows props down, events up. Components do not mutate the model themselves.
 
@@ -46,7 +48,7 @@ Worker(new URL(..., import.meta.url), { type: 'module' }) lets Vite bundle the w
 
 A 1.4-second pause makes bot actions readable and gives the human a catch window. Workers can observe a missed UNO even when it is the human's turn. Model actions end the catch window according to the existing rules.
 
-Request IDs match responses to requests. A generation counter rejects responses from a previous game; a state version prevents a decision based on an outdated hand from being applied. Restarting, finishing, or disposing the component terminates workers and clears timers. Errors and five-second response timeouts stop play with a visible recovery action.
+Request IDs match responses to requests. A generation counter rejects responses from a previous game; a state version prevents a decision based on an outdated hand from being applied. Restarting, returning to setup, finishing, or disposing the store terminates workers and clears timers. Errors and five-second response timeouts stop play with a visible recovery action.
 
 ## 6. TypeScript compatibility
 

@@ -1,85 +1,41 @@
 <script setup lang="ts">
-import GameSetup from './components/GameSetup.vue'
-import GameTable from './components/GameTable.vue'
-import GameResult from './components/GameResult.vue'
-import { useUnoGame } from './game/useUnoGame'
-const {
-  snapshot,
-  screen,
-  error,
-  messages,
-  pendingWild,
-  unoArmed,
-  offender,
-  winner,
-  score,
-  hand,
-  humanTurn,
-  legal,
-  start,
-  chooseCard,
-  chooseColor,
-  humanDraw,
-  sayUno,
-  catchBot,
-  reset,
-} = useUnoGame()
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { useGameStore } from './stores/GameStore'
+const game = useGameStore()
+const route = useRoute()
+const router = useRouter()
+function newRound() {
+  game.reset()
+  router.push({ name: 'setup' })
+}
 </script>
 
 <template>
   <div class="app-shell">
     <header>
-      <a
+      <RouterLink
         class="brand"
-        href="#"
-        @click.prevent="reset"
+        :to="{ name: 'setup' }"
       >
         UNO
-      </a>
+      </RouterLink>
       <button
-        v-if="screen !== 'setup'"
-        @click="reset"
+        v-if="route.name !== 'setup'"
+        @click="newRound"
       >
         New round
       </button>
     </header>
     <main>
       <div
-        v-if="error"
+        v-if="game.error"
         class="error"
         role="alert"
       >
-        {{ error }}
-        <button @click="reset">Return to setup</button>
+        {{ game.error }}
+        <button @click="newRound">Return to setup</button>
       </div>
-      <GameSetup
-        v-if="screen === 'setup'"
-        @start="start"
-      />
-      <GameTable
-        v-else-if="screen === 'playing' && snapshot"
-        :state="snapshot"
-        :hand="hand"
-        :legal="legal"
-        :human-turn="humanTurn"
-        :pending-wild="pendingWild"
-        :uno-armed="unoArmed"
-        :offender="offender"
-        :messages="messages"
-        @play="chooseCard"
-        @draw="humanDraw"
-        @uno="sayUno"
-        @catch="catchBot"
-        @color="chooseColor"
-        @cancel-color="pendingWild = null"
-      />
-      <GameResult
-        v-else-if="screen === 'finished' && snapshot"
-        :winner="winner"
-        :score="score"
-        :state="snapshot"
-        @restart="reset"
-      />
+      <RouterView />
     </main>
   </div>
 </template>
