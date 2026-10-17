@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
 import {
   colors,
+  type Card,
   type Color,
 } from '../../../OOModel_Assignmet1/src/model/card'
-import type { GameState } from '../model/uno-client'
+import type { GameState } from '../game/types'
 import UnoCard from './UnoCard.vue'
 
 const props = defineProps<{
   state: GameState
   player: string
+  hand: readonly Card[]
+  legal: number[]
+  myTurn: boolean
+  canSayUno: boolean
   busy: boolean
   pendingWild: number | null
 }>()
@@ -21,21 +25,11 @@ const emit = defineEmits<{
   catch: [player: string]
   color: [color: Color]
   cancelColor: []
+  restart: []
 }>()
 
-const myTurn = computed(
-  () => props.state.playerInTurn === props.player && !props.busy,
-)
 const opponents = computed(() =>
   props.state.players.filter(({ name }) => name !== props.player),
-)
-// Say UNO before playing down to one card, or late until someone catches you
-const canSayUno = computed(
-  () =>
-    !props.state.winner &&
-    !props.busy &&
-    ((myTurn.value && props.state.hand.length === 2) ||
-      props.state.hand.length === 1),
 )
 const banner = computed(() => {
   const { winner, playerInTurn } = props.state
@@ -113,17 +107,15 @@ const banner = computed(() => {
           :class="state.currentColor.toLowerCase()"
         ></span>
         {{ state.currentColor.toLowerCase() }} &middot;
-        {{
-          state.direction === 'clockwise' ? 'Clockwise' : 'Counterclockwise'
-        }}
+        {{ state.direction === 'clockwise' ? 'Clockwise' : 'Counterclockwise' }}
       </p>
-      <RouterLink
+      <button
         v-if="state.winner"
         class="primary button-link"
-        to="/"
+        @click="emit('restart')"
       >
-        Back to the lobby &rarr;
-      </RouterLink>
+        Set up another game &rarr;
+      </button>
     </div>
     <section
       class="hand-panel"
@@ -132,7 +124,7 @@ const banner = computed(() => {
       <div class="hand-heading">
         <h2 id="hand-title">
           {{ player }}
-          <span class="muted">&middot; {{ state.hand.length }} cards</span>
+          <span class="muted">&middot; {{ hand.length }} cards</span>
         </h2>
       </div>
       <p class="muted">
@@ -140,11 +132,11 @@ const banner = computed(() => {
       </p>
       <div class="hand">
         <UnoCard
-          v-for="(card, i) in state.hand"
+          v-for="(card, i) in hand"
           :key="i"
           :card="card"
           interactive
-          :playable="myTurn && pendingWild === null && state.playable.includes(i)"
+          :playable="myTurn && pendingWild === null && legal.includes(i)"
           @play="emit('play', i)"
         />
       </div>

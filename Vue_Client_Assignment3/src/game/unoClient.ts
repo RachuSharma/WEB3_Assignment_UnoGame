@@ -11,33 +11,9 @@ import { getMainDefinition } from '@apollo/client/utilities'
 import { createClient } from 'graphql-ws'
 import {
   cardFromMemento,
-  type Card,
   type Color,
 } from '../../../OOModel_Assignmet1/src/model/card'
-
-export type PendingGame = {
-  id: string
-  creator: string
-  numberOfPlayers: number
-  players: string[]
-}
-
-export type GameState = {
-  id: string
-  version: number
-  pending: boolean
-  numberOfPlayers: number
-  players: { name: string; cardCount: number }[]
-  hand: Card[]
-  playable: number[]
-  discardTop: Card | null
-  currentColor: Color | null
-  direction: string | null
-  playerInTurn: string | null
-  drawPileSize: number
-  winner: string | null
-  events: string[]
-}
+import type { GameState, PendingGame } from './types'
 
 type CardDTO = { type: string; color: string | null; number: number | null }
 type GameStateDTO = Omit<GameState, 'hand' | 'discardTop'> & {
@@ -180,7 +156,10 @@ export async function create_game(
   return toGameState(data.create_game)
 }
 
-export async function join_game(id: string, player: string): Promise<GameState> {
+export async function join_game(
+  id: string,
+  player: string,
+): Promise<GameState> {
   const data = await mutate(
     gql`
       mutation JoinGame($id: ID!, $player: String!) {
@@ -209,7 +188,12 @@ export async function play_card(
         $cardIndex: Int!
         $color: Color
       ) {
-        play_card(id: $id, player: $player, cardIndex: $cardIndex, color: $color) {
+        play_card(
+          id: $id
+          player: $player
+          cardIndex: $cardIndex
+          color: $color
+        ) {
           ...GameStateFields
         }
       }
@@ -220,7 +204,10 @@ export async function play_card(
   return toGameState(data.play_card)
 }
 
-export async function draw_card(id: string, player: string): Promise<GameState> {
+export async function draw_card(
+  id: string,
+  player: string,
+): Promise<GameState> {
   const data = await mutate(
     gql`
       mutation DrawCard($id: ID!, $player: String!) {

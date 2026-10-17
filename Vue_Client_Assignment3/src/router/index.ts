@@ -1,16 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import LobbyView from '../views/LobbyView.vue'
+import { useGameStore } from '../stores/GameStore'
+import SetupView from '../views/SetupView.vue'
 import GameView from '../views/GameView.vue'
 
+// Without a game in the store, for example after a page refresh, return to setup
 export default createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', name: 'lobby', component: LobbyView },
+    { path: '/', name: 'setup', component: SetupView },
     {
-      path: '/game/:id/:player',
+      path: '/game',
       name: 'game',
       component: GameView,
-      props: true,
+      beforeEnter: () => useGameStore().status !== 'setup' || { name: 'setup' },
     },
   ],
 })

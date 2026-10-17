@@ -16,9 +16,9 @@ The server listens on http://localhost:4000/graphql. Queries and mutations use H
 
 ## Requirements covered (must have)
 
-- Users identify themselves with a name, create a game for 2-4 players, and join a waiting game from the lobby.
+- Users identify themselves with a name, create a game for 2-4 players, and join a waiting game from the setup screen.
 - The round starts when the game is full and is played by the Assignment 1 `Round`, so the official rules apply: legal plays, Draw Two, Wild Draw Four, Skip, Reverse, saying and catching UNO.
-- Every change (join, start, play, draw, UNO, successful catch) is published to every participant through the `game_updated` subscription. The lobby is kept up to date through `pending_games_updated`.
+- Every change (join, start, play, draw, UNO, successful catch) is published to every participant through the `game_updated` subscription. The list of games waiting for players is kept up to date through `pending_games_updated`.
 - GraphQL is the only protocol between client and server.
 
 Optional requirements (database, registration/login, a full game with score, saving and resuming) are not implemented. Games live in memory while the server runs.
