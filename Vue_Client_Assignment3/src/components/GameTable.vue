@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import {
-  colors,
-  type Card,
-  type Color,
-} from '../../../OOModel_Assignmet1/src/model/card'
-import type { GameState } from '../game/types'
+import { colors, type Color } from '../../../OOModel_Assignmet1/src/model/card'
+import { useCardsStore } from '../stores/CardsStore'
+import { useCurrentPlayerStore } from '../stores/CurrentPlayerStore'
+import { useDiscardPileStore } from '../stores/DiscardPileStore'
+import { useOngoingGameStore } from '../stores/OngoingGameStore'
+import { usePlayerHandsStore } from '../stores/PlayerHandsStore'
 import UnoCard from './UnoCard.vue'
 
+// The table shows the stores; the game screen handles what the player does
+const cards = useCardsStore()
+const currentPlayer = useCurrentPlayerStore()
+const discardPile = useDiscardPileStore()
+const ongoingGame = useOngoingGameStore()
+const playerHands = usePlayerHandsStore()
+
 const props = defineProps<{
-  state: GameState
   player: string
-  hand: readonly Card[]
-  legal: number[]
   myTurn: boolean
   canSayUno: boolean
   busy: boolean
@@ -28,18 +32,18 @@ const emit = defineEmits<{
   restart: []
 }>()
 
+const winner = computed(() => ongoingGame.game?.winner ?? null)
 const opponents = computed(() =>
-  props.state.players.filter(({ name }) => name !== props.player),
+  playerHands.playerHands.filter(({ name }) => name !== props.player),
 )
 const banner = computed(() => {
-  const { winner, playerInTurn } = props.state
-  if (winner)
-    return winner === props.player
+  if (winner.value)
+    return winner.value === props.player
       ? 'You won the round!'
-      : `${winner} won the round!`
-  return playerInTurn === props.player
+      : `${winner.value} won the round!`
+  return currentPlayer.currentPlayer === props.player
     ? 'Your turn'
-    : `Waiting for ${playerInTurn}...`
+    : `Waiting for ${currentPlayer.currentPlayer}...`
 })
 </script>
 
@@ -50,7 +54,7 @@ const banner = computed(() => {
         v-for="opponent in opponents"
         :key="opponent.name"
         class="opponent"
-        :class="{ active: state.playerInTurn === opponent.name }"
+        :class="{ active: currentPlayer.currentPlayer === opponent.name }"
       >
         <span class="avatar">{{ opponent.name.charAt(0).toUpperCase() }}</span>
         <div>
@@ -58,13 +62,13 @@ const banner = computed(() => {
           <p>{{ opponent.cardCount }} cards</p>
         </div>
         <span
-          v-if="state.playerInTurn === opponent.name"
+          v-if="currentPlayer.currentPlayer === opponent.name"
           class="badge"
         >
           Playing
         </span>
         <button
-          v-if="opponent.cardCount === 1 && !state.winner"
+          v-if="opponent.cardCount === 1 && !winner"
           class="catch"
           :disabled="busy"
           @click="emit('catch', opponent.name)"
@@ -88,29 +92,33 @@ const banner = computed(() => {
           >
             <strong>UNO</strong>
           </div>
-          <p>Draw &middot; {{ state.drawPileSize }}</p>
+          <p>Draw &middot; {{ ongoingGame.game?.drawPileSize }}</p>
         </div>
         <div>
           <UnoCard
-            v-if="state.discardTop"
-            :card="state.discardTop"
+            v-if="discardPile.topCard"
+            :card="discardPile.topCard"
           />
           <p>Discard</p>
         </div>
       </div>
       <p
-        v-if="state.currentColor"
+        v-if="discardPile.currentColor"
         class="colour-status"
       >
         <span
           class="colour-dot"
-          :class="state.currentColor.toLowerCase()"
+          :class="discardPile.currentColor.toLowerCase()"
         ></span>
-        {{ state.currentColor.toLowerCase() }} &middot;
-        {{ state.direction === 'clockwise' ? 'Clockwise' : 'Counterclockwise' }}
+        {{ discardPile.currentColor.toLowerCase() }} &middot;
+        {{
+          ongoingGame.game?.direction === 'clockwise'
+            ? 'Clockwise'
+            : 'Counterclockwise'
+        }}
       </p>
       <button
-        v-if="state.winner"
+        v-if="winner"
         class="primary button-link"
         @click="emit('restart')"
       >
@@ -124,7 +132,7 @@ const banner = computed(() => {
       <div class="hand-heading">
         <h2 id="hand-title">
           {{ player }}
-          <span class="muted">&middot; {{ hand.length }} cards</span>
+          <span class="muted">&middot; {{ cards.cards.length }} cards</span>
         </h2>
       </div>
       <p class="muted">
@@ -132,11 +140,13 @@ const banner = computed(() => {
       </p>
       <div class="hand">
         <UnoCard
-          v-for="(card, i) in hand"
+          v-for="(card, i) in cards.cards"
           :key="i"
           :card="card"
           interactive
-          :playable="myTurn && pendingWild === null && legal.includes(i)"
+          :playable="
+            myTurn && pendingWild === null && cards.playable.includes(i)
+          "
           @play="emit('play', i)"
         />
       </div>
@@ -178,7 +188,7 @@ const banner = computed(() => {
       <summary>Table activity</summary>
       <ol>
         <li
-          v-for="(event, i) in state.events"
+          v-for="(event, i) in ongoingGame.game?.events"
           :key="i"
         >
           {{ event }}

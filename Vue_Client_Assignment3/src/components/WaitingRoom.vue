@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import type { GameState } from '../game/types'
-defineProps<{ state: GameState; player: string }>()
+import { useOngoingGameStore } from '../stores/OngoingGameStore'
+import { usePlayerHandsStore } from '../stores/PlayerHandsStore'
+defineProps<{ player: string }>()
+const ongoingGame = useOngoingGameStore()
+const playerHands = usePlayerHandsStore()
 </script>
 
 <template>
@@ -10,11 +13,12 @@ defineProps<{ state: GameState; player: string }>()
   >
     <p class="round-status">WAITING FOR PLAYERS</p>
     <h1 id="waiting-title">
-      {{ state.players.length }} of {{ state.numberOfPlayers }} players
+      {{ playerHands.playerHands.length }} of
+      {{ ongoingGame.game?.numberOfPlayers }} players
     </h1>
     <ol class="player-list">
       <li
-        v-for="{ name } in state.players"
+        v-for="{ name } in playerHands.playerHands"
         :key="name"
       >
         {{ name }}

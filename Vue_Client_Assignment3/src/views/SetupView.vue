@@ -1,31 +1,51 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useGameStore } from '../stores/GameStore'
+import * as uno from '../game/unoClient'
+import type { GameState } from '../game/types'
+import { usePendingGamesStore } from '../stores/PendingGamesStore'
 const router = useRouter()
-const game = useGameStore()
+const pendingGames = usePendingGamesStore()
 const name = ref('')
 const players = ref(2)
+const error = ref('')
+const busy = ref(false)
 const playerName = computed(() => name.value.trim())
 const valid = computed(
   () => playerName.value.length > 0 && playerName.value.length <= 30,
 )
-// Returning to setup leaves the current game and shows the games waiting for players
-onMounted(() => {
-  game.reset()
-  game.watchLobby()
+
+let unsubscribe = () => {}
+onMounted(async () => {
+  // Subscribe first, so no change between the query and the subscription is missed
+  unsubscribe = uno.onPendingGamesUpdated(pendingGames.update)
+  try {
+    pendingGames.update(await uno.pending_games())
+  } catch (cause) {
+    error.value = uno.errorMessage(cause)
+  }
 })
-onUnmounted(game.unwatchLobby)
-async function create() {
-  if (!valid.value) return
-  await game.create({ name: playerName.value, players: players.value })
-  if (game.status !== 'setup') router.push({ name: 'game' })
+onUnmounted(() => unsubscribe())
+
+async function enter(action: () => Promise<GameState>) {
+  if (!valid.value || busy.value) return
+  error.value = ''
+  busy.value = true
+  try {
+    const game = await action()
+    await router.push({
+      name: 'game',
+      params: { id: game.id, player: playerName.value },
+    })
+  } catch (cause) {
+    error.value = uno.errorMessage(cause)
+  } finally {
+    busy.value = false
+  }
 }
-async function join(id: string) {
-  if (!valid.value) return
-  await game.join(id, playerName.value)
-  if (game.status !== 'setup') router.push({ name: 'game' })
-}
+const create = () =>
+  enter(() => uno.create_game(playerName.value, players.value))
+const join = (id: string) => enter(() => uno.join_game(id, playerName.value))
 </script>
 
 <template>
@@ -35,6 +55,13 @@ async function join(id: string) {
   >
     <h1 id="setup-title">Let's play UNO</h1>
     <p>Play one round of UNO against 1-3 other players.</p>
+    <div
+      v-if="error"
+      class="error"
+      role="alert"
+    >
+      {{ error }}
+    </div>
     <form @submit.prevent="create">
       <label for="player-name">Your name</label>
       <input
@@ -56,7 +83,7 @@ async function join(id: string) {
       </select>
       <button
         class="primary"
-        :disabled="!valid || game.busy"
+        :disabled="!valid || busy"
         type="submit"
       >
         Create game &rarr;
@@ -64,12 +91,12 @@ async function join(id: string) {
     </form>
     <h2 id="open-games">Join a game</h2>
     <ul
-      v-if="game.pendingGames.length"
+      v-if="pendingGames.games.length"
       class="game-list"
       aria-labelledby="open-games"
     >
       <li
-        v-for="pending in game.pendingGames"
+        v-for="pending in pendingGames.games"
         :key="pending.id"
       >
         <div>
@@ -81,9 +108,7 @@ async function join(id: string) {
           </p>
         </div>
         <button
-          :disabled="
-            !valid || game.busy || pending.players.includes(playerName)
-          "
+          :disabled="!valid || busy || pending.players.includes(playerName)"
           @click="join(pending.id)"
         >
           Join

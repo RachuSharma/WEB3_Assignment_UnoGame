@@ -1,7 +1,5 @@
 import type { Card, Color } from '../../../OOModel_Assignmet1/src/model/card'
 
-export type Setup = { name: string; players: number }
-
 export type PendingGame = {
   id: string
   creator: string
