@@ -18,21 +18,21 @@ Finish the assignment while giving short explanations as work progresses. Do not
 
 OOModel_Assignmet1 remains the rules authority. Round.canPlay checks legality; play and draw apply effects; sayUno and catchUnoFailure manage the UNO window and four-card penalty; winner and score provide results. We reuse this implementation rather than duplicating rules in components or workers. Assignment 2 follows this model's drawing and opening-card behaviour.
 
-## 2. View model: src/stores/GameStore.ts
+## 2. View model: src/game/useUnoGame.ts and the Pinia stores
 
-GameStore is a Pinia setup store: a function that groups Vue reactive state and related behaviour, written with the Composition API like a component's script setup. It owns one live Round instance and exports the round status and actions to the views. After each model action it replaces a plain snapshot stored in shallowRef. Vue notices that replacement and renders the current state. The snapshot is derived display data; the live model remains authoritative.
+A composable is a function that groups Vue reactive state and related behaviour. useUnoGame runs on the game screen and owns one live Round instance and the bot workers. After each model action it copies what the screens display into small Pinia stores, one per piece of data, as in the reference projects: CardsStore (the human hand), PlayerHandsStore (names, card counts and hand values), CurrentPlayerStore (whose turn it is), DiscardPileStore (top card and current colour) and OngoingGameStore (setup, direction, draw pile size, activity messages, winner and score). The stores hold plain data with simple setters; the live model remains authoritative.
 
-computed derives the human hand, whose turn it is, and playable indices. We avoid separately maintaining copied turn names, card counts, and colours. This prevents inconsistent display values. ref holds UI choices such as an unfinished wild-card selection and whether the user has armed UNO.
+computed derives whose turn it is and the playable indices from the stores and the live model. ref holds UI choices such as an unfinished wild-card selection and whether the user has armed UNO.
 
-The setup, game and result screens are separate routes that all need the same round, so the state lives in one Pinia store instead of a component. The same structure is used by the Assignment 3 client. The round itself lives in memory: there is no server or URL-addressable saved game.
+The setup, game and result screens are separate routes. The stores let all of them read the same round, so the result screen still has the final hands after the game screen has closed. The same structure is used by the Assignment 3 client. The round itself lives in memory: there is no server or URL-addressable saved game.
 
 ## 3. Routes, views and reusable components
 
-src/router/index.ts maps / to SetupView, /game to GameView and /result to ResultView. A route guard sends the browser back to setup when no matching round exists, for example after a page refresh. App.vue holds the header, error message and RouterView.
+src/router/index.ts maps / to SetupView, /game to GameView and /result to ResultView. A route guard sends the browser back to setup when no matching round exists, for example after a page refresh. App.vue holds the header and RouterView.
 
-SetupView.vue owns the form fields. v-model binds input values; computed validates the trimmed name; submit.prevent handles the form without reloading the page. It starts the round in the store with a typed Setup value and then opens /game. Returning to setup, including with the browser's back button, ends a running round and stops its workers. GameView.vue connects GameTable to the store and opens /result when the round ends. ResultView.vue does the same for GameResult.
+SetupView.vue owns the form fields. v-model binds input values; computed validates the trimmed name; submit.prevent handles the form without reloading the page. It stores a typed Setup value in OngoingGameStore and opens /game. GameView.vue starts the round with useUnoGame, shows errors, passes the player's choices on, and opens /result when the round ends. Leaving the game screen, including with the browser's back button, stops the workers.
 
-GameTable.vue receives the current state through props and emits user intentions: play, draw, UNO, catch, and colour choice. UnoCard.vue renders a single card, deriving its label and colour from its prop. GameResult.vue displays the winner, round score, and remaining hand values. This follows props down, events up. Components do not mutate the model themselves.
+GameTable.vue and GameResult.vue read the stores and emit user intentions: play, draw, UNO, catch, colour choice and restart. UnoCard.vue renders a single card, deriving its label and colour from its prop. Components do not mutate the model or the stores themselves.
 
 The colour chooser uses ordinary accessible buttons rather than window.prompt. Disabled cards communicate legality. Labels, headings, text equivalents for colours and symbols, keyboard focus, and status messages support accessibility. CSS adapts to mobile widths and has no required external assets.
 
@@ -48,7 +48,7 @@ Worker(new URL(..., import.meta.url), { type: 'module' }) lets Vite bundle the w
 
 A 1.4-second pause makes bot actions readable and gives the human a catch window. Workers can observe a missed UNO even when it is the human's turn. Model actions end the catch window according to the existing rules.
 
-Request IDs match responses to requests. A generation counter rejects responses from a previous game; a state version prevents a decision based on an outdated hand from being applied. Restarting, returning to setup, finishing, or disposing the store terminates workers and clears timers. Errors and five-second response timeouts stop play with a visible recovery action.
+Request IDs match responses to requests. A generation counter rejects responses from a previous game; a state version prevents a decision based on an outdated hand from being applied. Restarting, finishing, or leaving the game screen terminates workers and clears timers. Errors and five-second response timeouts stop play with a visible recovery action.
 
 ## 6. TypeScript compatibility
 

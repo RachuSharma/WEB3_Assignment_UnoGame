@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useGameStore } from '../stores/GameStore'
+import { useOngoingGameStore } from '../stores/OngoingGameStore'
 import SetupView from '../views/SetupView.vue'
 import GameView from '../views/GameView.vue'
 import ResultView from '../views/ResultView.vue'
@@ -13,15 +13,21 @@ export default createRouter({
       path: '/game',
       name: 'game',
       component: GameView,
-      beforeEnter: () =>
-        useGameStore().status === 'playing' || { name: 'setup' },
+      beforeEnter: () => {
+        const ongoingGame = useOngoingGameStore()
+        return (
+          (ongoingGame.setup !== null && ongoingGame.winner === null) || {
+            name: 'setup',
+          }
+        )
+      },
     },
     {
       path: '/result',
       name: 'result',
       component: ResultView,
       beforeEnter: () =>
-        useGameStore().status === 'finished' || { name: 'setup' },
+        useOngoingGameStore().winner !== null || { name: 'setup' },
     },
   ],
 })
