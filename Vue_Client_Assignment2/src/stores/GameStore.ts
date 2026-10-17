@@ -1,16 +1,18 @@
 import { computed, onScopeDispose, ref, shallowRef } from 'vue'
+import { defineStore } from 'pinia'
 import {
   startRound,
   type Round,
 } from '../../../OOModel_Assignmet1/src/model/round'
 import { isWild, type Color } from '../../../OOModel_Assignmet1/src/model/card'
-import type { BotDecision, BotRequest, BotResponse, Setup } from './types'
+import type { BotDecision, BotRequest, BotResponse, Setup } from '../game/types'
 
-export function useUnoGame() {
+export const useGameStore = defineStore('game', () => {
   // The class instance owns the rules. Replacing its plain snapshot notifies Vue.
   let round: Round | null = null
   const snapshot = shallowRef<ReturnType<Round['toMemento']> | null>(null)
-  const screen = ref<'setup' | 'playing' | 'finished'>('setup')
+  // The router shows the screen that matches this status
+  const status = ref<'setup' | 'playing' | 'finished'>('setup')
   const error = ref('')
   const messages = ref<string[]>([])
   const busy = ref(false)
@@ -36,7 +38,7 @@ export function useUnoGame() {
   const hand = computed(() => snapshot.value?.hands[0] ?? [])
   const humanTurn = computed(
     () =>
-      screen.value === 'playing' &&
+      status.value === 'playing' &&
       snapshot.value?.playerInTurn === 0 &&
       !busy.value &&
       !error.value,
@@ -54,7 +56,7 @@ export function useUnoGame() {
     if (round?.hasEnded()) {
       winner.value = round.player(round.winner()!)
       score.value = round.score() ?? 0
-      screen.value = 'finished'
+      status.value = 'finished'
       stop()
     }
   }
@@ -152,7 +154,7 @@ export function useUnoGame() {
           )
         workers.push(worker)
       }
-      screen.value = 'playing'
+      status.value = 'playing'
       sync()
       log(
         'Round started. Match the colour, number, or symbol on the discard pile.',
@@ -198,7 +200,7 @@ export function useUnoGame() {
     }
   }
   function schedule() {
-    if (screen.value !== 'playing' || error.value) return
+    if (status.value !== 'playing' || error.value) return
     const token = generation
     // Leave a visible window to say UNO late or catch a bot before its next action.
     busy.value = snapshot.value?.playerInTurn !== 0
@@ -284,7 +286,7 @@ export function useUnoGame() {
     }
   }
   function sayUno() {
-    if (!round || screen.value !== 'playing' || error.value) return
+    if (!round || status.value !== 'playing' || error.value) return
     if (offender.value === 0) {
       round.sayUno(0)
       offender.value = null
@@ -300,18 +302,21 @@ export function useUnoGame() {
       fail(cause)
     }
   }
+  function cancelColor() {
+    pendingWild.value = null
+  }
   function reset() {
     stop()
     round = null
     snapshot.value = null
-    screen.value = 'setup'
+    status.value = 'setup'
     error.value = ''
     pendingWild.value = null
   }
   onScopeDispose(stop)
   return {
     snapshot,
-    screen,
+    status,
     error,
     messages,
     busy,
@@ -329,6 +334,7 @@ export function useUnoGame() {
     humanDraw,
     sayUno,
     catchBot,
+    cancelColor,
     reset,
   }
-}
+})

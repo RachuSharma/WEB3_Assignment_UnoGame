@@ -36,15 +36,17 @@ Jest runs the original model tests and bot integration checks, including 300 see
 
 ## Structure
 
-- src/game/useUnoGame.ts: reactive coordination, model actions, worker lifecycle.
+- src/stores/GameStore.ts: Pinia store with reactive coordination, model actions, worker lifecycle.
+- src/router/index.ts: routes for setup (/), game (/game) and result (/result).
+- src/views: one view per route; views connect the store to the components.
+- src/components: table, reusable card, and results.
 - src/game/types.ts: typed messages and game setup.
 - src/game/botStrategy.ts: decisions among legal moves; no duplicate UNO rule engine.
 - src/workers/bot.worker.ts: postMessage/onmessage worker entry point.
-- src/components: setup, table, reusable card, and results.
 - ../OOModel_Assignmet1: original UNO model and tests.
 - Assignment2.md: explanations and exam revision notes.
 
-The client follows the teacher's MVVM and Components material: single source of truth, derived reactive state, props down, events up, consistent Composition API. It uses conditional screens and a root-owned composable rather than requiring a router or global state library.
+The client follows the teacher's MVVM and Components material: single source of truth, derived reactive state, props down, events up, consistent Composition API. It uses the same structure as the Assignment 3 client: a Pinia store for state, Vue Router for screens, views for routes and components for presentation.
 
 ## Testing approach
 

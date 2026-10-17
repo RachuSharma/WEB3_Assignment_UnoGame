@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import type { Setup } from '../game/types'
-const emit = defineEmits<{ start: [setup: Setup] }>()
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useGameStore } from '../stores/GameStore'
+const router = useRouter()
+const game = useGameStore()
 const name = ref('')
 const bots = ref(1)
 const valid = computed(
   () => name.value.trim().length > 0 && name.value.trim().length <= 30,
 )
+// Returning to setup, also with the browser's back button, ends a running round
+onMounted(game.reset)
 function submit() {
-  if (valid.value) emit('start', { name: name.value.trim(), bots: bots.value })
+  if (!valid.value) return
+  game.start({ name: name.value.trim(), bots: bots.value })
+  if (game.status === 'playing') router.push({ name: 'game' })
 }
 </script>
 
