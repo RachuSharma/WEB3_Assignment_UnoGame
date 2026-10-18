@@ -4,8 +4,8 @@
  */
 
 module.exports = {
-  // Run the original model tests and Assignment 2 bot integration tests.
-  roots: ["<rootDir>/OOModel_Assignmet1", "<rootDir>/Vue_Client_Assignment2/tests"],
+  // Run the original model tests, Assignment 2 bot integration tests and Assignment 3 server tests.
+  roots: ["<rootDir>/OOModel_Assignmet1", "<rootDir>/Vue_Client_Assignment2/tests", "<rootDir>/Server_Assignment3/tests"],
   // All imported modules in your tests should be mocked automatically
   // automock: false,
 

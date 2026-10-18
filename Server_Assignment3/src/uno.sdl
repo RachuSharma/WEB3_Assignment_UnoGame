@@ -1,0 +1,62 @@
+enum Color {
+  BLUE
+  GREEN
+  RED
+  YELLOW
+}
+
+type Card {
+  type: String!
+  color: Color
+  number: Int
+}
+
+# A game in the lobby that is still waiting for players
+type PendingGame {
+  id: ID!
+  creator: String!
+  numberOfPlayers: Int!
+  players: [String!]!
+}
+
+type Player {
+  name: String!
+  cardCount: Int!
+}
+
+# The game as one participant may see it: only their own hand is included
+type GameState {
+  id: ID!
+  version: Int!
+  pending: Boolean!
+  numberOfPlayers: Int!
+  players: [Player!]!
+  hand: [Card!]!
+  playable: [Int!]!
+  discardTop: Card
+  currentColor: Color
+  direction: String
+  playerInTurn: String
+  drawPileSize: Int!
+  winner: String
+  events: [String!]!
+}
+
+type Query {
+  pending_games: [PendingGame!]!
+  game(id: ID!, player: String!): GameState!
+}
+
+type Mutation {
+  create_game(creator: String!, numberOfPlayers: Int!): GameState!
+  join_game(id: ID!, player: String!): GameState!
+  play_card(id: ID!, player: String!, cardIndex: Int!, color: Color): GameState!
+  draw_card(id: ID!, player: String!): GameState!
+  say_uno(id: ID!, player: String!): GameState!
+  catch_uno(id: ID!, player: String!, accused: String!): Boolean!
+}
+
+type Subscription {
+  pending_games_updated: [PendingGame!]!
+  game_updated(id: ID!, player: String!): GameState!
+}
