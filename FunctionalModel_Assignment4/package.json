@@ -1,0 +1,22 @@
+{
+  "name": "uno-functional",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Assignment 4: the UNO rules from Assignment 1 as immutable types and pure functions",
+  "scripts": {
+    "test": "jest",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.6",
+    "@babel/preset-env": "^7.24.6",
+    "@babel/preset-typescript": "^7.24.6",
+    "@types/lodash": "^4.17.20",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0",
+    "typescript": "^5.4.5"
+  }
+}
